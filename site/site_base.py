@@ -30,7 +30,8 @@ class SiteBase:
 		self.options = Options()
 		self.options.add_extension('./dark_reader_extension.crx')
 		self.driver = webdriver.Chrome(options=self.options)
-		self.driver.switch_to.window(self.driver.window_handles[1])
+		time.sleep(3)
+		self.driver.switch_to.window(self.driver.window_handles[0])
 		self.wait = WebDriverWait(self.driver, int(self.config['WAIT_SECONDS']))
 		atexit.register(self.close)
 		signal.signal(signal.SIGTERM, self.close)
@@ -68,6 +69,9 @@ class SiteBase:
 	def wait_for_element_with_text(self, value):
 		self.wait.until(EC.presence_of_element_located((By.XPATH, self.get_xpath_for_element_with_text(value))))
 
+	def wait_for_element_with_attribute_contains(self, name, value):
+		self.wait.until(EC.presence_of_element_located((By.XPATH, self.get_xpath_for_element_with_attribute_contains(name, value))))
+
 	def wait_for_element_with_text_visible(self, value):
 		self.wait.until(EC.visibility_of_element_located((By.XPATH, self.get_xpath_for_element_with_text(value))))
 
@@ -81,11 +85,24 @@ class SiteBase:
 		except NoSuchElementException or IndexError:
 			return False
 
+	def check_element_with_attribute_contains_visible(self, name, value, index=0):
+		try:
+			if index > 0:
+				element = self.driver.find_elements_by_xpath(self.get_xpath_for_element_with_attribute_contains(name, value))[index]
+			else:
+				element = self.driver.find_element_by_xpath(self.get_xpath_for_element_with_attribute_contains(name, value))
+			return element.is_displayed()
+		except NoSuchElementException or IndexError:
+			return False
+
 	def wait_for_clickable_element_with_text(self, value):
 		self.wait.until(EC.element_to_be_clickable((By.XPATH, self.get_xpath_for_element_with_text(value))))
 
 	def find_element_with_text(self, value, index=0):
 		return self.driver.find_elements_by_xpath(self.get_xpath_for_element_with_text(value))[index]
+
+	def find_element_with_attribute_contains(self, name, value, index=0):
+		return self.driver.find_elements_by_xpath(self.get_xpath_for_element_with_attribute_contains(name, value))[index]
 
 	def find_sibling_of_element_with_text(self, text, index, sibling_type, sibling_index):
 		element = self.find_element_with_text(text, index)
@@ -101,6 +118,11 @@ class SiteBase:
 	def click_element_with_text(self, value, index=0):
 		self.wait_for_element_with_text(value)
 		element = self.find_element_with_text(value, index)
+		self.click(element)
+
+	def click_element_with_attribute_contains(self, name, value, index=0):
+		self.wait_for_element_with_attribute_contains(name, value)
+		element = self.find_element_with_attribute_contains(name, value, index)
 		self.click(element)
 
 	def click_sibling_of_element_with_text(self, text, sibling_type, index=0, sibling_index=0):
@@ -205,6 +227,10 @@ class SiteBase:
 	@staticmethod
 	def get_xpath_for_element_with_text(value):
 		return f"//*[contains(text(), '{value}')]"
+
+	@staticmethod
+	def get_xpath_for_element_with_attribute_contains(name, value):
+		return f"//a[contains(@{name},'{value}')]"
 
 	@staticmethod
 	def find_sibling(element, sibling_type, sibling_index):
